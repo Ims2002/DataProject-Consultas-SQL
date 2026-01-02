@@ -1,0 +1,102 @@
+55. Encuentra el nombre y apellido de los actores que han actuado en
+películas que se alquilaron después de que la película ‘Spartacus
+Cheaper’ se alquilara por primera vez. Ordena los resultados
+alfabéticamente por apellido.
+
+create temp table film_act as 
+	select f.film_id, f.title, a.first_name, a.last_name
+	from film f 
+	join film_actor fa on f.film_id = fa.film_id
+	join actor a on fa.actor_id = a.actor_id
+
+--- Fecha Máxima ---
+select max(r.rental_date) from rental r
+join inventory i on r.inventory_id = i.inventory_id 
+where i.film_id = 824
+
+select * 
+from film_act fa
+join inventory i on fa.film_id = i.film_id 
+join rental r on i.inventory_id  = r.inventory_id 
+where 
+(select max(r.rental_date) from rental r
+join inventory i on r.inventory_id = i.inventory_id 
+where i.film_id = 824) < r.rental_date 
+
+56. Encuentra el nombre y apellido de los actores que no han actuado en ninguna película de la categoría ‘Music’.
+
+select *
+from film_act fa
+join film_category fc on fa.film_id = fc.film_id 
+join category c on fc.category_id = c.category_id 
+where c."name" not like 'Music'
+
+57. Encuentra el título de todas las películas que fueron alquiladas por más de 8 días.
+
+select * from film f
+where f.rental_duration > 8
+
+Soy consciente de que también se puede hacer sumando los días de alquiler por película con los campos de la tabla rental.
+
+58. Encuentra el título de todas las películas que son de la misma categoría que ‘Animation’.
+
+select f.title
+from film f
+join film_category fc on f.film_id = fc.film_id 
+join category c on fc.category_id = c.category_id 
+where c."name" = 'Animation'
+
+59. Encuentra los nombres de las películas que tienen la misma duración que la película con el título ‘Dancing Fever’. Ordena los resultados alfabéticamente por título de película.
+
+select f.title, f.length 
+from film f
+where (
+	select f.length from film f
+	where lower(f.title) = 'dancing fever'
+) = f.length 
+order by f.title asc
+
+60. Encuentra los nombres de los clientes que han alquilado al menos 7 películas distintas. Ordena los resultados alfabéticamente por apellido.
+
+select distinct c.nombre, c.apellido, count(r.rental_id)
+from customer c 
+join rental r on c.customer_id = r.customer_id 
+group by c.customer_id, c.nombre 
+having count(r.rental_id) > 8
+order by c.apellido asc
+
+61. Encuentra la cantidad total de películas alquiladas por categoría y muestra el nombre de la categoría junto con el recuento de alquileres.
+
+create temp table film_rents as 
+	select f.film_id, count(r.rental_id) 
+	from film f 
+	join inventory i on f.film_id = i.film_id 
+	join rental r on i.inventory_id = r.inventory_id 
+	group by f.film_id 
+
+select c."name", sum(fr.count)
+from film_rents fr
+join film_category fc on fr.film_id = fc.film_id 
+join category c on fc.category_id = c.category_id 
+group by c."name"
+
+62. Encuentra el número de películas por categoría estrenadas en 2006.
+
+select c."name" ,count(f.film_id) 
+from film f
+join film_category fc on f.film_id = fc.film_id 
+join category c on fc.category_id = c.category_id 
+where f.release_year = 2006
+group by c."name" 
+
+63. Obtén todas las combinaciones posibles de trabajadores con las tiendas que tenemos.
+
+select * from staff s 
+cross join store
+
+64. Encuentra la cantidad total de películas alquiladas por cada cliente y muestra el ID del cliente, su nombre y apellido junto con la cantidad de películas alquiladas.
+
+select c.customer_id, c.nombre, c.apellido, count(r.rental_id)
+from customer c 
+join rental r on c.customer_id = r.customer_id 
+group by c.customer_id, c.nombre, c.apellido  

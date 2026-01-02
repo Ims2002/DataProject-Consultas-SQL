@@ -1,0 +1,158 @@
+37. Encuentra el ID del actor más bajo y más alto en la tabla actor.
+
+select MAX(actor_id), MIN(actor_id) from actor 
+
+38. Cuenta cuántos actores hay en la tabla “actor”.
+
+select count(actor_id) from actor 
+
+39. Selecciona todos los actores y ordénalos por apellido en orden
+ascendente.
+
+select * from actor 
+order by actor.last_name asc
+
+40. Selecciona las primeras 5 películas de la tabla “film”.
+
+select * from film
+limit 5
+
+41. Agrupa los actores por su nombre y cuenta cuántos actores tienen el mismo nombre. ¿Cuál es el nombre más repetido?
+
+select first_name, count(first_name) as cantidad 
+from actor
+group by first_name 
+order by cantidad desc
+
+KENNETH	4
+PENELOPE 4
+
+42. Encuentra todos los alquileres y los nombres de los clientes que los realizaron.
+
+select r.rental_id, c.nombre
+from rental r 
+join customer c on r.customer_id = c.customer_id 
+
+43. Muestra todos los clientes y sus alquileres si existen, incluyendo aquellos que no tienen alquileres.
+
+select r.rental_id, c.nombre
+from rental r 
+left join customer c on r.customer_id = c.customer_id 
+
+44. Realiza un CROSS JOIN entre las tablas film y category. ¿Aporta valor esta consulta? ¿Por qué? Deja después de la consulta la contestación.
+
+select f.title, c."name"  
+from film f
+cross join category c
+
+No aporta valor en este caso ya que únicamente junta cada película con todas las categorías que hay en la tabla category, así con todas las películas. Lo que aportaría valor es mostrar las categorías a las que pertenece una o todas película.
+
+45. Encuentra los actores que han participado en películas de la categoría 'Action'.
+
+select  c."name" as categoria, ai.full_name 
+from act_info ai 
+join film_actor fa on ai.actor_id = fa.actor_id 
+join film_category fc on fa.film_id = fc.film_id 
+join category c on fc.category_id = c.category_id 
+where c."name" = 'Action'
+
+
+46. Encuentra todos los actores que no han participado en películas.
+
+select ai.full_name, count(fa.film_id) 
+from act_info ai 
+left join film_actor fa on ai.actor_id = fa.actor_id 
+group by ai.full_name 
+having count(fa.film_id) = 0
+
+La BBDD no tiene actores sin películas????
+
+47. Selecciona el nombre de los actores y la cantidad de películas en las que han participado.
+
+select ai.full_name, count(fa.film_id) 
+from act_info ai 
+left join film_actor fa on ai.actor_id = fa.actor_id 
+group by ai.actor_id, ai.full_name 
+
+48. Crea una vista llamada “actor_num_peliculas” que muestre los nombres de los actores y el número de películas en las que han participado.
+
+create view actor_num_peliculas as
+	select ai.full_name, count(fa.film_id) 
+	from act_info ai 
+	left join film_actor fa on ai.actor_id = fa.actor_id 
+	group by ai.actor_id, ai.full_name 
+
+49. Calcula el número total de alquileres realizados por cada cliente.
+
+select c.email, sum(c.customer_id)
+from customer c  
+join rental r on c.customer_id = r.customer_id 
+group by c.customer_id , c.email 
+
+50. Calcula la duración total de las películas en la categoría 'Action'.
+
+select sum(f.length)
+from film f
+join film_category fc on f.film_id = fc.film_id 
+join category c on fc.category_id = c.category_id 
+where c."name" = 'Action'
+
+51. Crea una tabla temporal llamada “cliente_rentas_temporal” para
+almacenar el total de alquileres por cliente.
+
+create temp table clientes_rentas_temporal as 
+	select c.email, sum(c.customer_id)
+	from customer c  
+	join rental r on c.customer_id = r.customer_id 
+	group by c.customer_id , c.email 
+
+52. Crea una tabla temporal llamada “peliculas_alquiladas” que almacene las películas que han sido alquiladas al menos 10 veces.
+
+create temp table peliculas_alquiladas as 
+	select f.title ,sum(r.rental_id)
+	from film f
+	join inventory i on f.film_id = i.film_id 
+	join rental r on i.inventory_id = r.inventory_id 
+	group by f.film_id 
+	having sum(r.rental_id) > 10
+
+53. Encuentra el título de las películas que han sido alquiladas por el cliente con el nombre ‘Tammy Sanders’ y que aún no se han devuelto. Ordena los resultados alfabéticamente por título de película.
+
+create temp table tammy_films as 
+	select  f.film_id,
+    f.title,
+    f.description,
+    f.release_year,
+    f.length,
+    c.customer_id,
+    c.nombre,
+    c.apellido,
+    c.email
+	from film f 
+	join inventory i on f.film_id = i.film_id
+	join rental r on i.inventory_id = r.inventory_id
+	join customer c on r.customer_id = c.customer_id
+	where lower(concat(c.nombre,' ',c.apellido)) = 'tammy sanders'
+
+Después de revisar la tabla rental y no encontrar ningún tipo de campo que pudiese ayudarme a saber si aun no se habían devuelto opté por obviar este punto. La comparación de fechas con NOW() no es viable ya que hablamos de fechas del 2005 - 2006.
+
+select * from tammy_films
+order by title asc 
+
+54. Encuentra los nombres de los actores que han actuado en al menos una película que pertenece a la categoría ‘Sci-Fi’. Ordena los resultados alfabéticamente por apellido.
+
+create temp table sci_films as 
+	select f.film_id,
+    f.title,
+    c.category_id,
+    c."name"
+	from film f 
+	join film_category fc on f.film_id = fc.film_id
+	join category c on fc.category_id = c.category_id
+	where c."name" = 'Sci-Fi'
+
+select a.first_name, a.last_name, sf.title, sf.name
+from actor a
+join film_actor fa on a.actor_id = fa.actor_id 
+join sci_films sf on fa.film_id = sf.film_id
+order by a.last_name asc
