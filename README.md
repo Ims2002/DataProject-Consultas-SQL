@@ -31,9 +31,9 @@ order by length asc
 ## 6. Encuentra el nombre y apellido de los actores que tengan ‘Allen’ en su
 apellido.
 ```
-select concat(first_name,' ',last_name) as "Nombre Completo" 
-from actor
-where lower(last_name) in ('allen')
+SELECT CONCAT(first_name, ' ', last_name) AS "Nombre Completo"
+FROM actor
+WHERE LOWER(last_name) LIKE '%allen%';
 ```
 ## 7. Encuentra la cantidad total de películas en cada clasificación de la tabla
 “film” y muestra la clasificación junto con el recuento.
@@ -51,8 +51,8 @@ where rating = 'PG-13' or length > 180
 ```
 ## 9. Encuentra la variabilidad de lo que costaría reemplazar las películas.
 ```
-select avg(replacement_cost) as "Promedio de Reemplazo" 
-from film 
+SELECT STDDEV(replacement_cost) AS "Desviacion_Estandar"
+FROM film;
 ```
 ## 10. Encuentra la mayor y menor duración de una película de nuestra BBDD.
 ```
@@ -62,12 +62,10 @@ from film
 ```
 ## 11. Encuentra lo que costó el antepenúltimo alquiler ordenado por día.
 ```
-select * 
-from rental 
-where rental_id = 
-(select max(rental_id)-2 as Id 
-from rental) 
-order by rental_date 
+SELECT amount
+FROM payment
+ORDER BY payment_date DESC
+LIMIT 1 OFFSET 2;
 ```
 ## 12. Encuentra el título de las películas en la tabla “film” que no sean ni ‘NC17’ ni ‘G’ en cuanto a su clasificación.
 ```
@@ -132,8 +130,9 @@ having AVG(f.length) > 110
 ```
 ## 21. ¿Cuál es la media de duración del alquiler de las películas?
 ```
-select AVG(rental_duration) 
-from film
+SELECT AVG(DATEDIFF(return_date, rental_date)) AS media_duracion_real
+FROM rental
+WHERE return_date IS NOT NULL;
 ```
 ## 22. Crea una columna con el nombre y apellidos de todos los actores y actrices.
 ```
@@ -145,14 +144,9 @@ select * from act_info
 ```
 ## 23. Números de alquiler por día, ordenados por cantidad de alquiler de forma descendente.
 ```
-select 
-date(r.rental_date) as dia,
-p.amount as cantidad, 
-sum(r.rental_id) as alquileres_dia
-from rental r
-join payment p on r.rental_id = p.rental_id
-group by date(r.rental_date), p.amount 
-order by p.amount desc
+SELECT AVG(DATEDIFF(return_date, rental_date)) AS media_duracion_real
+FROM rental
+WHERE return_date IS NOT NULL;
 ```
 ## 24. Encuentra las películas con una duración superior al promedio.
 ```
@@ -162,13 +156,12 @@ where (select AVG(length) from film) < length
 ```
 ## 25. Averigua el número de alquileres registrados por mes.
 ```
-select 
-concat(extract(month from r.rental_date),'-',extract(year from r.rental_date)) as mes,
-sum(r.rental_id) as alquileres_mes
-from rental r
-join payment p on r.rental_id = p.rental_id
-group by extract(month from r.rental_date), mes
-order by mes asc
+SELECT 
+DATE_FORMAT(rental_date, '%m-%Y') AS mes,
+COUNT(*) AS alquileres_mes
+FROM rental
+GROUP BY DATE_FORMAT(rental_date, '%m-%Y')
+ORDER BY MIN(rental_date);
 ```
 ## 26. Encuentra el promedio, la desviación estándar y varianza del total pagado.
 ```
@@ -201,31 +194,50 @@ having count(f.film_id) > 40
 ```
 ## 29. Obtener todas las películas y, si están disponibles en el inventario, mostrar la cantidad disponible.
 ```
-select distinct f.title, count(i.inventory_id) from film f 
-left join inventory i on f.film_id = i.film_id 
-group by i.film_id, f.title  
+SELECT 
+f.film_id,
+f.title,
+COUNT(i.inventory_id) AS cantidad_disponible
+FROM film f
+LEFT JOIN inventory i 
+ON f.film_id = i.film_id
+GROUP BY f.film_id, f.title;
 ```
 ## 30. Obtener los actores y el número de películas en las que ha actuado.
 ```
-select distinct fa.actor_id, count(fa.film_id) as cantidad_peliculas
-from film f 
-left join film_actor fa on f.film_id = fa.film_id 
-group by fa.actor_id  
+SELECT 
+a.actor_id,
+CONCAT(a.first_name, ' ', a.last_name) AS nombre_completo,
+COUNT(fa.film_id) AS cantidad_peliculas
+FROM actor a
+LEFT JOIN film_actor fa 
+ON a.actor_id = fa.actor_id
+GROUP BY a.actor_id, a.first_name, a.last_name
+ORDER BY cantidad_peliculas DESC;
 ```
 ## 31. Obtener todas las películas y mostrar los actores que han actuado en ellas, incluso si algunas películas no tienen actores asociados.
 ```
-select f.title, ai.full_name 
-from film f
-left join film_actor fa on f.film_id = fa.film_id
-left join act_info ai on fa.actor_id = ai.actor_id
-order by f.title;
+SELECT 
+f.title,
+CONCAT(a.first_name, ' ', a.last_name) AS actor
+FROM film f
+LEFT JOIN film_actor fa 
+ON f.film_id = fa.film_id
+LEFT JOIN actor a 
+ON fa.actor_id = a.actor_id
+ORDER BY f.title;
 ```
 ## 32. Obtener todos los actores y mostrar las películas en las que han actuado, incluso si algunos actores no han actuado en ninguna película.
 ```
-select f.title, ai.first_name  from actor ai
-left join film_actor fa on ai.actor_id = fa.actor_id  
-left join film f on fa.film_id = f.film_id 
-order by ai.first_name 
+SELECT 
+CONCAT(a.first_name, ' ', a.last_name) AS actor,
+f.title
+FROM actor a
+LEFT JOIN film_actor fa 
+ON a.actor_id = fa.actor_id
+LEFT JOIN film f 
+ON fa.film_id = f.film_id
+ORDER BY actor;
 ```
 ## 33. Obtener todas las películas que tenemos y todos los registros de alquiler.
 ```
@@ -293,9 +305,16 @@ join customer c on r.customer_id = c.customer_id
 ```
 ## 43. Muestra todos los clientes y sus alquileres si existen, incluyendo aquellos que no tienen alquileres.
 ```
-select r.rental_id, c.nombre
-from rental r 
-left join customer c on r.customer_id = c.customer_id 
+SELECT 
+c.customer_id,
+c.first_name,
+c.last_name,
+r.rental_id,
+r.rental_date
+FROM customer c
+LEFT JOIN rental r 
+ON c.customer_id = r.customer_id
+ORDER BY c.customer_id;
 ```
 ## 44. Realiza un CROSS JOIN entre las tablas film y category. ¿Aporta valor esta consulta? ¿Por qué? Deja después de la consulta la contestación.
 ```
@@ -307,22 +326,28 @@ No aporta valor en este caso ya que únicamente junta cada película con todas l
 
 ## 45. Encuentra los actores que han participado en películas de la categoría 'Action'.
 ```
-select  c."name" as categoria, ai.full_name 
-from act_info ai 
-join film_actor fa on ai.actor_id = fa.actor_id 
-join film_category fc on fa.film_id = fc.film_id 
-join category c on fc.category_id = c.category_id 
-where c."name" = 'Action'
+SELECT 
+CONCAT(a.first_name, ' ', a.last_name) AS actor,
+c.name AS categoria
+FROM actor a
+JOIN film_actor fa 
+ON a.actor_id = fa.actor_id
+JOIN film_category fc 
+ON fa.film_id = fc.film_id
+JOIN category c 
+ON fc.category_id = c.category_id
+WHERE c.name = 'Action'
+ORDER BY actor;
 ```
 ## 46. Encuentra todos los actores que no han participado en películas.
 ```
-select ai.full_name, count(fa.film_id) 
-from act_info ai 
-left join film_actor fa on ai.actor_id = fa.actor_id 
-group by ai.full_name 
-having count(fa.film_id) = 0
+SELECT 
+CONCAT(a.first_name, ' ', a.last_name) AS actor
+FROM actor a
+LEFT JOIN film_actor fa 
+ON a.actor_id = fa.actor_id
+WHERE fa.actor_id IS NULL;
 ```
-La BBDD no tiene actores sin películas????
 
 ## 47. Selecciona el nombre de los actores y la cantidad de películas en las que han participado.
 ```
@@ -341,10 +366,15 @@ create view actor_num_peliculas as
 ```
 ## 49. Calcula el número total de alquileres realizados por cada cliente.
 ```
-select c.email, sum(c.customer_id)
-from customer c  
-join rental r on c.customer_id = r.customer_id 
-group by c.customer_id , c.email 
+SELECT 
+c.customer_id,
+c.email,
+COUNT(r.rental_id) AS total_alquileres
+FROM customer c
+LEFT JOIN rental r 
+ON c.customer_id = r.customer_id
+GROUP BY c.customer_id, c.email
+ORDER BY total_alquileres DESC;
 ```
 ## 50. Calcula la duración total de las películas en la categoría 'Action'.
 ```
@@ -356,44 +386,46 @@ where c."name" = 'Action'
 ```
 ## 51. Crea una tabla temporal llamada “cliente_rentas_temporal” para almacenar el total de alquileres por cliente.
 ```
-create temp table clientes_rentas_temporal as 
-	select c.email, sum(c.customer_id)
-	from customer c  
-	join rental r on c.customer_id = r.customer_id 
-	group by c.customer_id , c.email 
+CREATE TEMP TABLE cliente_rentas_temporal AS
+SELECT 
+    c.customer_id,
+    c.email,
+    COUNT(r.rental_id) AS total_alquileres
+FROM customer c
+LEFT JOIN rental r 
+ON c.customer_id = r.customer_id
+GROUP BY c.customer_id, c.email;
 ```
 ## 52. Crea una tabla temporal llamada “peliculas_alquiladas” que almacene las películas que han sido alquiladas al menos 10 veces.
 ```
-create temp table peliculas_alquiladas as 
-	select f.title ,sum(r.rental_id)
-	from film f
-	join inventory i on f.film_id = i.film_id 
-	join rental r on i.inventory_id = r.inventory_id 
-	group by f.film_id 
-	having sum(r.rental_id) > 10
+CREATE TEMP TABLE peliculas_alquiladas AS
+SELECT 
+    f.film_id,
+    f.title,
+    COUNT(r.rental_id) AS total_alquileres
+FROM film f
+JOIN inventory i 
+ON f.film_id = i.film_id
+JOIN rental r 
+ON i.inventory_id = r.inventory_id
+GROUP BY f.film_id, f.title
+HAVING COUNT(r.rental_id) >= 10;
 ```
 ## 53. Encuentra el título de las películas que han sido alquiladas por el cliente con el nombre ‘Tammy Sanders’ y que aún no se han devuelto. Ordena los resultados alfabéticamente por título de película.
 ```
-create temp table tammy_films as 
-	select  f.film_id,
-    f.title,
-    f.description,
-    f.release_year,
-    f.length,
-    c.customer_id,
-    c.nombre,
-    c.apellido,
-    c.email
-	from film f 
-	join inventory i on f.film_id = i.film_id
-	join rental r on i.inventory_id = r.inventory_id
-	join customer c on r.customer_id = c.customer_id
-	where lower(concat(c.nombre,' ',c.apellido)) = 'tammy sanders'
-```
-Después de revisar la tabla rental y no encontrar ningún tipo de campo que pudiese ayudarme a saber si aun no se habían devuelto opté por obviar este punto. La comparación de fechas con NOW() no es viable ya que hablamos de fechas del 2005 - 2006.
-```
-select * from tammy_films
-order by title asc 
+SELECT 
+    f.title
+FROM film f
+JOIN inventory i 
+ON f.film_id = i.film_id
+JOIN rental r 
+ON i.inventory_id = r.inventory_id
+JOIN customer c 
+ON r.customer_id = c.customer_id
+WHERE 
+    LOWER(CONCAT(c.first_name, ' ', c.last_name)) = 'tammy sanders'
+    AND r.return_date IS NULL
+ORDER BY f.title ASC;
 ```
 ## 54. Encuentra los nombres de los actores que han actuado en al menos una película que pertenece a la categoría ‘Sci-Fi’. Ordena los resultados alfabéticamente por apellido.
 ```
@@ -416,43 +448,59 @@ order by a.last_name asc
 ```
 ## 55. Encuentra el nombre y apellido de los actores que han actuado en películas que se alquilaron después de que la película ‘Spartacus Cheaper’ se alquilara por primera vez. Ordena los resultados alfabéticamente por apellido.
 ```
-create temp table film_act as 
-	select f.film_id, f.title, a.first_name, a.last_name
-	from film f 
-	join film_actor fa on f.film_id = fa.film_id
-	join actor a on fa.actor_id = a.actor_id
+SELECT DISTINCT
+    a.first_name,
+    a.last_name
+FROM actor a
+JOIN film_actor fa 
+ON a.actor_id = fa.actor_id
+JOIN inventory i 
+ON fa.film_id = i.film_id
+JOIN rental r 
+ON i.inventory_id = r.inventory_id
+WHERE r.rental_date > (
+    SELECT MIN(r2.rental_date)
+    FROM rental r2
+    JOIN inventory i2 
+    ON r2.inventory_id = i2.inventory_id
+    JOIN film f2 
+    ON i2.film_id = f2.film_id
+    WHERE f2.title = 'Spartacus Cheaper'
+)
+ORDER BY a.last_name;
 ```
-### Fecha Máxima
-```
-select max(r.rental_date) from rental r
-join inventory i on r.inventory_id = i.inventory_id 
-where i.film_id = 824
-```
-```
-select * 
-from film_act fa
-join inventory i on fa.film_id = i.film_id 
-join rental r on i.inventory_id  = r.inventory_id 
-where 
-(select max(r.rental_date) from rental r
-join inventory i on r.inventory_id = i.inventory_id 
-where i.film_id = 824) < r.rental_date 
-```
+
 ## 56. Encuentra el nombre y apellido de los actores que no han actuado en ninguna película de la categoría ‘Music’.
 ```
-select *
-from film_act fa
-join film_category fc on fa.film_id = fc.film_id 
-join category c on fc.category_id = c.category_id 
-where c."name" not like 'Music'
+SELECT 
+    a.first_name,
+    a.last_name
+FROM actor a
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM film_actor fa
+    JOIN film_category fc 
+        ON fa.film_id = fc.film_id
+    JOIN category c 
+        ON fc.category_id = c.category_id
+    WHERE fa.actor_id = a.actor_id
+      AND c.name = 'Music'
+)
+ORDER BY a.last_name;
 ```
 ## 57. Encuentra el título de todas las películas que fueron alquiladas por más de 8 días.
 ```
-select * from film f
-where f.rental_duration > 8
+SELECT DISTINCT
+    f.title
+FROM film f
+JOIN inventory i 
+ON f.film_id = i.film_id
+JOIN rental r 
+ON i.inventory_id = r.inventory_id
+WHERE 
+    r.return_date IS NOT NULL
+    AND (r.return_date - r.rental_date) > INTERVAL '8 days';
 ```
-Soy consciente de que también se puede hacer sumando los días de alquiler por película con los campos de la tabla rental.
-
 ## 58. Encuentra el título de todas las películas que son de la misma categoría que ‘Animation’.
 ```
 select f.title
@@ -473,28 +521,43 @@ order by f.title asc
 ```
 ## 60. Encuentra los nombres de los clientes que han alquilado al menos 7 películas distintas. Ordena los resultados alfabéticamente por apellido.
 ```
-select distinct c.nombre, c.apellido, count(r.rental_id)
-from customer c 
-join rental r on c.customer_id = r.customer_id 
-group by c.customer_id, c.nombre 
-having count(r.rental_id) > 8
-order by c.apellido asc
+SELECT 
+    c.first_name,
+    c.last_name,
+    COUNT(DISTINCT i.film_id) AS peliculas_distintas
+FROM customer c
+JOIN rental r 
+    ON c.customer_id = r.customer_id
+JOIN inventory i 
+    ON r.inventory_id = i.inventory_id
+GROUP BY c.customer_id, c.first_name, c.last_name
+HAVING COUNT(DISTINCT i.film_id) >= 7
+ORDER BY c.last_name ASC;
 ```
 ## 61. Encuentra la cantidad total de películas alquiladas por categoría y muestra el nombre de la categoría junto con el recuento de alquileres.
 ```
-create temp table film_rents as 
-	select f.film_id, count(r.rental_id) 
-	from film f 
-	join inventory i on f.film_id = i.film_id 
-	join rental r on i.inventory_id = r.inventory_id 
-	group by f.film_id 
+CREATE TEMP TABLE film_rents AS 
+SELECT 
+    f.film_id, 
+    COUNT(r.rental_id) AS total_rentas
+FROM film f 
+JOIN inventory i 
+    ON f.film_id = i.film_id 
+JOIN rental r 
+    ON i.inventory_id = r.inventory_id 
+GROUP BY f.film_id;
 ```
 ```
-select c."name", sum(fr.count)
-from film_rents fr
-join film_category fc on fr.film_id = fc.film_id 
-join category c on fc.category_id = c.category_id 
-group by c."name"
+SELECT 
+    c.name AS categoria, 
+    SUM(fr.total_rentas) AS total_alquileres
+FROM film_rents fr
+JOIN film_category fc 
+    ON fr.film_id = fc.film_id 
+JOIN category c 
+    ON fc.category_id = c.category_id 
+GROUP BY c.name
+ORDER BY total_alquileres DESC;
 ```
 ## 62. Encuentra el número de películas por categoría estrenadas en 2006.
 ```
